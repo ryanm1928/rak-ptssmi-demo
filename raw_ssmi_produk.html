@@ -7,55 +7,48 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-gray-100 p-6">
-  <h1 class="text-xl font-bold mb-4">Pilih Lokasi Rak</h1>
+<body class="bg-gray-100 p-4 text-[10px]">
+  <h1 class="text-lg font-bold mb-3">Pilih Lokasi Rak</h1>
 
   <!-- Step 1: Pilih Room -->
-  <div class="mb-4">
+  <div class="mb-3">
     <p class="font-semibold mb-1">1. Pilih Room:</p>
-    <select id="roomSelect" class="border p-2 rounded w-40">
+    <select id="roomSelect" class="border p-1 rounded w-32 text-[10px]">
       <option value="">-- Pilih Room --</option>
       <option value="A">Room A</option>
       <option value="B">Room B</option>
     </select>
   </div>
 
-  <!-- Step 2: Pilih Rak secara visual -->
-  <div id="rakGrid" class="grid grid-cols-5 gap-2 mb-6"></div>
+  <!-- Step 2: Pilih Rak -->
+  <div id="rakGrid" class="grid grid-cols-5 gap-1 mb-4"></div>
 
   <!-- Step 3: Slot Grid -->
-  <div id="slotGrid" class="grid grid-rows-4 grid-cols-8 gap-2 mb-6 text-xs"></div>
+  <div id="slotGrid" class="grid grid-rows-4 grid-cols-8 gap-1 mb-4"></div>
 
   <!-- Lokasi Output -->
-  <div id="lokasiBox" class="bg-white shadow p-4 rounded hidden">
+  <div id="lokasiBox" class="bg-white shadow p-3 rounded hidden text-[11px]">
     <p class="font-semibold">📦 Lokasi Terpilih:</p>
-    <p id="lokasiText" class="text-blue-600 text-lg mt-1"></p>
+    <p id="lokasiText" class="text-blue-600 text-sm mt-1"></p>
   </div>
 
   <script>
-    // Generate 1 tumpukan (1 box) atau null (40% kosong)
-    const generateStack = () => {
-      if (Math.random() < 0.4) return null;
-      return {
-        product_id: "8" + ["OR", "VS", "RM", "RP", "OS"][Math.floor(Math.random() * 5)] + "-" + String(Math.floor(Math.random() * 20)).padStart(3, "0"),
-        qty: Math.floor(Math.random() * 20000 + 100) // pcs
-      };
+    // generate stack dengan qty & product_id yang sama dalam 1 slot
+    const generateUniformStack = () => {
+      const product_id = "8" + ["OR", "VS", "RM", "RP", "OS"][Math.floor(Math.random() * 5)] + "-" + String(Math.floor(Math.random() * 20)).padStart(3, "0");
+      const qty = Math.floor(Math.random() * 5000 + 1000);
+      const boxCount = Math.floor(Math.random() * 4); // 0–3 box
+      return Array.from({ length: 3 }, (_, i) => (i < boxCount ? { product_id, qty } : null));
     };
 
-    // Generate slot dengan 3 tumpukan
     const generateDummySlot = () => {
       const result = {};
       for (let level of ["A", "B", "C", "D"]) {
-        result[level] = Array.from({ length: 8 }, () => [
-          generateStack(),
-          generateStack(),
-          generateStack()
-        ]);
+        result[level] = Array.from({ length: 8 }, () => generateUniformStack());
       }
       return result;
     };
 
-    // Inisialisasi data rak A–T
     const data = {};
     for (let i = 65; i <= 84; i++) {
       data[String.fromCharCode(i)] = generateDummySlot();
@@ -70,7 +63,6 @@
     let selectedRoom = "";
     let selectedRak = "";
 
-    // Saat room dipilih
     roomSelect.addEventListener("change", () => {
       selectedRoom = roomSelect.value;
       rakGrid.innerHTML = "";
@@ -79,11 +71,11 @@
 
       if (!selectedRoom) return;
 
-      const rakRange = selectedRoom === "A" ? [65, 74] : [75, 84]; // A–J atau K–T
+      const rakRange = selectedRoom === "A" ? [65, 74] : [75, 84];
       for (let i = rakRange[0]; i <= rakRange[1]; i++) {
         const rakCode = String.fromCharCode(i);
         const btn = document.createElement("button");
-        btn.className = "p-4 bg-blue-500 hover:bg-blue-600 text-white rounded font-bold";
+        btn.className = "p-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-[10px] font-bold";
         btn.innerText = `Rak ${rakCode}`;
         btn.onclick = () => showSlot(rakCode);
         rakGrid.appendChild(btn);
@@ -98,33 +90,43 @@
       const tingkatList = ["D", "C", "B", "A"];
       tingkatList.forEach(tingkat => {
         data[rakCode][tingkat].forEach((stackList, index) => {
-          const filledCount = stackList.filter(stack => stack !== null).length;
-          const isAvailable = filledCount < 3;
+          const filledStacks = stackList.filter(stack => stack !== null);
+          const isAvailable = filledStacks.length < 3;
 
-          const btn = document.createElement("button");
-          btn.className = `p-1 rounded text-white text-[10px] font-medium text-left leading-tight whitespace-pre-line ${isAvailable ? "bg-green-500 hover:bg-green-600" : "bg-red-500 cursor-not-allowed"
+          const btn = document.createElement("div");
+          btn.className = `border rounded p-1 text-[10px] whitespace-pre-line leading-tight flex flex-col justify-between min-h-[120px] ${isAvailable ? "bg-green-100 hover:bg-green-200 cursor-pointer" : "bg-red-100"
             }`;
+          btn.title = `Rak ${rakCode} - Tingkat ${tingkat} - Slot ${index + 1}`;
 
-          let content = "";
-          let totalQty = 0;
 
+          let content = `<div class="border border-gray-300 rounded-sm divide-y divide-gray-300 mb-1 flex-grow">`;
+
+
+          // Tampilkan semua 3 baris, isi atau kosong
           stackList.forEach(stack => {
             if (stack) {
-              content += `🟦 ${stack.product_id} | Qty: ${stack.qty.toLocaleString()}\n`;
-              totalQty += stack.qty;
+              content += `<div class="px-1 py-[2px] text-gray-800">
+            ${stack.product_id} | Qty: ${stack.qty.toLocaleString()}
+          </div>`;
+            } else {
+              content += `<div class="px-1 py-[2px] text-gray-400 italic text-center">– kosong –</div>`;
             }
           });
 
-          content += `\n📦 Total Box: ${filledCount} | Total Qty: ${totalQty.toLocaleString()}`;
-          btn.innerText = content.trim();
+          content += `</div>`;
+
+          const totalQty = filledStacks.reduce((sum, stack) => sum + stack.qty, 0);
+          content += `<div class="pt-1 border-t border-gray-300 text-gray-800 font-semibold text-[10px] text-center">
+        📦 Box: ${filledStacks.length} | Total Qty: ${totalQty.toLocaleString()}
+      </div>`;
+
+          btn.innerHTML = content;
 
           if (isAvailable) {
             btn.onclick = () => {
               lokasiText.textContent = `Rak ${rakCode} - Tingkat ${tingkat} - Slot ${index + 1}`;
               lokasiBox.classList.remove("hidden");
             };
-          } else {
-            btn.disabled = true;
           }
 
           slotGrid.appendChild(btn);
