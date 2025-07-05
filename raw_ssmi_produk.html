@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>Pilih Rak Visual Interaktif</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 p-6">
   <h1 class="text-xl font-bold mb-4">Pilih Lokasi Rak</h1>
 
@@ -31,26 +33,30 @@
   </div>
 
   <script>
-    const materialList = ["Rubber", "Spring", "Metal"];
-    const randomMaterial = () => materialList[Math.floor(Math.random() * materialList.length)];
-    const randomQty = () => Math.random() < 0.4 ? 0 : Math.floor(Math.random() * 1500 + 1); // 40% slot kosong
+    // Generate 1 tumpukan (1 box) atau null (40% kosong)
+    const generateStack = () => {
+      if (Math.random() < 0.4) return null;
+      return {
+        product_id: "8" + ["OR", "VS", "RM", "RP", "OS"][Math.floor(Math.random() * 5)] + "-" + String(Math.floor(Math.random() * 20)).padStart(3, "0"),
+        qty: Math.floor(Math.random() * 20000 + 100) // pcs
+      };
+    };
 
+    // Generate slot dengan 3 tumpukan
     const generateDummySlot = () => {
       const result = {};
       for (let level of ["A", "B", "C", "D"]) {
-        result[level] = Array.from({ length: 8 }, () => {
-          const qty = randomQty();
-          return {
-            material: qty === 0 ? "Kosong" : randomMaterial(),
-            qty: qty
-          };
-        });
+        result[level] = Array.from({ length: 8 }, () => [
+          generateStack(),
+          generateStack(),
+          generateStack()
+        ]);
       }
       return result;
     };
 
+    // Inisialisasi data rak A–T
     const data = {};
-    // Inisialisasi rak Room A (A–J) dan Room B (K–T)
     for (let i = 65; i <= 84; i++) {
       data[String.fromCharCode(i)] = generateDummySlot();
     }
@@ -64,6 +70,7 @@
     let selectedRoom = "";
     let selectedRak = "";
 
+    // Saat room dipilih
     roomSelect.addEventListener("change", () => {
       selectedRoom = roomSelect.value;
       rakGrid.innerHTML = "";
@@ -72,7 +79,7 @@
 
       if (!selectedRoom) return;
 
-      const rakRange = selectedRoom === "A" ? [65, 74] : [75, 84]; // ASCII A–J atau K–T
+      const rakRange = selectedRoom === "A" ? [65, 74] : [75, 84]; // A–J atau K–T
       for (let i = rakRange[0]; i <= rakRange[1]; i++) {
         const rakCode = String.fromCharCode(i);
         const btn = document.createElement("button");
@@ -90,25 +97,42 @@
 
       const tingkatList = ["D", "C", "B", "A"];
       tingkatList.forEach(tingkat => {
-        data[rakCode][tingkat].forEach((slot, index) => {
-          const btn = document.createElement("button");
-          btn.className = `p-2 rounded text-white text-xs text-center font-medium ${
-            slot.qty === 0 ? "bg-green-500 hover:bg-green-600" : "bg-red-400 cursor-not-allowed"
-          }`;
-          btn.innerHTML = `${slot.material}<br/>Qty: ${slot.qty}`;
-          btn.disabled = slot.qty > 0;
+        data[rakCode][tingkat].forEach((stackList, index) => {
+          const filledCount = stackList.filter(stack => stack !== null).length;
+          const isAvailable = filledCount < 3;
 
-          if (slot.qty === 0) {
+          const btn = document.createElement("button");
+          btn.className = `p-1 rounded text-white text-[10px] font-medium text-left leading-tight whitespace-pre-line ${isAvailable ? "bg-green-500 hover:bg-green-600" : "bg-red-500 cursor-not-allowed"
+            }`;
+
+          let content = "";
+          let totalQty = 0;
+
+          stackList.forEach(stack => {
+            if (stack) {
+              content += `🟦 ${stack.product_id} | Qty: ${stack.qty.toLocaleString()}\n`;
+              totalQty += stack.qty;
+            }
+          });
+
+          content += `\n📦 Total Box: ${filledCount} | Total Qty: ${totalQty.toLocaleString()}`;
+          btn.innerText = content.trim();
+
+          if (isAvailable) {
             btn.onclick = () => {
               lokasiText.textContent = `Rak ${rakCode} - Tingkat ${tingkat} - Slot ${index + 1}`;
               lokasiBox.classList.remove("hidden");
             };
+          } else {
+            btn.disabled = true;
           }
 
           slotGrid.appendChild(btn);
         });
       });
     }
+
   </script>
 </body>
+
 </html>
