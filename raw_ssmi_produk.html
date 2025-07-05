@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pilih Rak Visual Interaktif</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <h1 class="text-xl font-bold mb-4">Pilih Lokasi Rak</h1>
+
+  <!-- Step 1: Pilih Room -->
+  <div class="mb-4">
+    <p class="font-semibold mb-1">1. Pilih Room:</p>
+    <select id="roomSelect" class="border p-2 rounded w-40">
+      <option value="">-- Pilih Room --</option>
+      <option value="A">Room A</option>
+      <option value="B">Room B</option>
+    </select>
+  </div>
+
+  <!-- Step 2: Pilih Rak secara visual -->
+  <div id="rakGrid" class="grid grid-cols-5 gap-2 mb-6"></div>
+
+  <!-- Step 3: Slot Grid -->
+  <div id="slotGrid" class="grid grid-rows-4 grid-cols-8 gap-2 mb-6 text-xs"></div>
+
+  <!-- Lokasi Output -->
+  <div id="lokasiBox" class="bg-white shadow p-4 rounded hidden">
+    <p class="font-semibold">📦 Lokasi Terpilih:</p>
+    <p id="lokasiText" class="text-blue-600 text-lg mt-1"></p>
+  </div>
+
+  <script>
+    const materialList = ["Rubber", "Spring", "Metal"];
+    const randomMaterial = () => materialList[Math.floor(Math.random() * materialList.length)];
+    const randomQty = () => Math.random() < 0.4 ? 0 : Math.floor(Math.random() * 1500 + 1); // 40% slot kosong
+
+    const generateDummySlot = () => {
+      const result = {};
+      for (let level of ["A", "B", "C", "D"]) {
+        result[level] = Array.from({ length: 8 }, () => {
+          const qty = randomQty();
+          return {
+            material: qty === 0 ? "Kosong" : randomMaterial(),
+            qty: qty
+          };
+        });
+      }
+      return result;
+    };
+
+    const data = {};
+    // Inisialisasi rak Room A (A–J) dan Room B (K–T)
+    for (let i = 65; i <= 84; i++) {
+      data[String.fromCharCode(i)] = generateDummySlot();
+    }
+
+    const roomSelect = document.getElementById("roomSelect");
+    const rakGrid = document.getElementById("rakGrid");
+    const slotGrid = document.getElementById("slotGrid");
+    const lokasiBox = document.getElementById("lokasiBox");
+    const lokasiText = document.getElementById("lokasiText");
+
+    let selectedRoom = "";
+    let selectedRak = "";
+
+    roomSelect.addEventListener("change", () => {
+      selectedRoom = roomSelect.value;
+      rakGrid.innerHTML = "";
+      slotGrid.innerHTML = "";
+      lokasiBox.classList.add("hidden");
+
+      if (!selectedRoom) return;
+
+      const rakRange = selectedRoom === "A" ? [65, 74] : [75, 84]; // ASCII A–J atau K–T
+      for (let i = rakRange[0]; i <= rakRange[1]; i++) {
+        const rakCode = String.fromCharCode(i);
+        const btn = document.createElement("button");
+        btn.className = "p-4 bg-blue-500 hover:bg-blue-600 text-white rounded font-bold";
+        btn.innerText = `Rak ${rakCode}`;
+        btn.onclick = () => showSlot(rakCode);
+        rakGrid.appendChild(btn);
+      }
+    });
+
+    function showSlot(rakCode) {
+      selectedRak = rakCode;
+      slotGrid.innerHTML = "";
+      lokasiBox.classList.add("hidden");
+
+      const tingkatList = ["D", "C", "B", "A"];
+      tingkatList.forEach(tingkat => {
+        data[rakCode][tingkat].forEach((slot, index) => {
+          const btn = document.createElement("button");
+          btn.className = `p-2 rounded text-white text-xs text-center font-medium ${
+            slot.qty === 0 ? "bg-green-500 hover:bg-green-600" : "bg-red-400 cursor-not-allowed"
+          }`;
+          btn.innerHTML = `${slot.material}<br/>Qty: ${slot.qty}`;
+          btn.disabled = slot.qty > 0;
+
+          if (slot.qty === 0) {
+            btn.onclick = () => {
+              lokasiText.textContent = `Rak ${rakCode} - Tingkat ${tingkat} - Slot ${index + 1}`;
+              lokasiBox.classList.remove("hidden");
+            };
+          }
+
+          slotGrid.appendChild(btn);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
