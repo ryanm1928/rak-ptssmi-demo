@@ -20,10 +20,26 @@
     </select>
   </div>
 
-  <!-- Step 2: Pilih Rak -->
+  <!-- Step 2: Filter & Input -->
+  <div class="flex gap-3 items-center mb-3">
+    <div>
+      <label class="font-semibold block mb-1">🔍 Cari Product ID:</label>
+      <input id="searchProduct" type="text" placeholder="Contoh: OR-005" class="border p-1 rounded w-32 text-[10px]" />
+    </div>
+    <div>
+      <label class="font-semibold block mb-1">🏷️ Packaging:</label>
+      <select id="klasifikasiSelect" class="border p-1 rounded w-24 text-[10px]">
+        <option value="">-- Kode --</option>
+        <option value="B">BULK</option>
+        <option value="TKR">TKR</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Step 3: Pilih Rak -->
   <div id="rakGrid" class="grid grid-cols-5 gap-1 mb-4"></div>
 
-  <!-- Step 3: Slot Grid -->
+  <!-- Step 4: Slot Grid -->
   <div id="slotGrid" class="grid grid-rows-4 grid-cols-8 gap-1 mb-4"></div>
 
   <!-- Lokasi Output -->
@@ -33,25 +49,45 @@
   </div>
 
   <script>
-    // generate stack dengan qty & product_id yang sama dalam 1 slot
+    const productIds = [
+      "8OR-001", "8OS-002", "8RM-003", "8OS-004", "8OS-005", "8OS-006",
+      "8OS-007", "8OS-008", "8OS-009", "8VS-010", "8OS-011", "8OR-012",
+      "8OR-013", "8OS-014", "8OS-015", "8OS-016", "8RP-021", "8OR-022"
+    ];
+
     const generateUniformStack = () => {
-      const product_id = "8" + ["OR", "VS", "RM", "RP", "OS"][Math.floor(Math.random() * 5)] + "-" + String(Math.floor(Math.random() * 20)).padStart(3, "0");
+      const product_id = productIds[Math.floor(Math.random() * productIds.length)];
+      const boxSuffix = Math.random() < 0.5 ? "B" : "TKR";
       const qty = Math.floor(Math.random() * 5000 + 1000);
-      const boxCount = Math.floor(Math.random() * 4); // 0–3 box
-      return Array.from({ length: 3 }, (_, i) => (i < boxCount ? { product_id, qty } : null));
+      const boxCount = Math.floor(Math.random() * 3) + 1; // 1–3 box (agar tidak kosong total)
+
+      return Array.from({ length: 3 }, (_, i) =>
+        i < boxCount
+          ? {
+            product_id,
+            qty,
+            box_id: `${Math.floor(Math.random() * 2000 + 1000)} ${boxSuffix}`
+          }
+          : null
+      );
     };
 
-    const generateDummySlot = () => {
+
+
+
+    const generateDummySlot = (klasifikasi) => {
       const result = {};
       for (let level of ["A", "B", "C", "D"]) {
-        result[level] = Array.from({ length: 8 }, () => generateUniformStack());
+        result[level] = Array.from({ length: 8 }, () => generateUniformStack(klasifikasi));
       }
       return result;
     };
 
     const data = {};
+    const getKlasifikasi = () => document.getElementById("klasifikasiSelect").value || "B";
+
     for (let i = 65; i <= 84; i++) {
-      data[String.fromCharCode(i)] = generateDummySlot();
+      data[String.fromCharCode(i)] = generateDummySlot(getKlasifikasi());
     }
 
     const roomSelect = document.getElementById("roomSelect");
@@ -59,6 +95,7 @@
     const slotGrid = document.getElementById("slotGrid");
     const lokasiBox = document.getElementById("lokasiBox");
     const lokasiText = document.getElementById("lokasiText");
+    const searchProduct = document.getElementById("searchProduct");
 
     let selectedRoom = "";
     let selectedRak = "";
@@ -77,9 +114,18 @@
         const btn = document.createElement("button");
         btn.className = "p-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-[10px] font-bold";
         btn.innerText = `Rak ${rakCode}`;
-        btn.onclick = () => showSlot(rakCode);
+        btn.onclick = () => {
+          document.querySelectorAll("#rakGrid button").forEach(b => b.classList.remove("bg-yellow-300"));
+          btn.classList.add("bg-yellow-300");
+          showSlot(rakCode);
+        };
+
         rakGrid.appendChild(btn);
       }
+    });
+
+    searchProduct.addEventListener("input", () => {
+      if (selectedRak) showSlot(selectedRak);
     });
 
     function showSlot(rakCode) {
@@ -87,27 +133,41 @@
       slotGrid.innerHTML = "";
       lokasiBox.classList.add("hidden");
 
+      const searchVal = searchProduct.value.trim().toUpperCase();
+
       const tingkatList = ["D", "C", "B", "A"];
       tingkatList.forEach(tingkat => {
         data[rakCode][tingkat].forEach((stackList, index) => {
           const filledStacks = stackList.filter(stack => stack !== null);
           const isAvailable = filledStacks.length < 3;
+          const klasifikasiFilter = document.getElementById("klasifikasiSelect").value;
+
+          const hasKlasifikasi = klasifikasiFilter
+            ? stackList.every(stack => !stack || stack.box_id.endsWith(klasifikasiFilter))
+            : true;
+
+          const hasSearch = searchVal
+            ? stackList.some(stack => stack && stack.product_id.includes(searchVal))
+            : true;
+
+          if (!hasKlasifikasi || !hasSearch) return;
+
+
+          if (!hasSearch) return;
 
           const btn = document.createElement("div");
           btn.className = `border rounded p-1 text-[10px] whitespace-pre-line leading-tight flex flex-col justify-between min-h-[120px] ${isAvailable ? "bg-green-100 hover:bg-green-200 cursor-pointer" : "bg-red-100"
             }`;
           btn.title = `Rak ${rakCode} - Tingkat ${tingkat} - Slot ${index + 1}`;
 
-
           let content = `<div class="border border-gray-300 rounded-sm divide-y divide-gray-300 mb-1 flex-grow">`;
 
-
-          // Tampilkan semua 3 baris, isi atau kosong
           stackList.forEach(stack => {
             if (stack) {
               content += `<div class="px-1 py-[2px] text-gray-800">
-            ${stack.product_id} | Qty: ${stack.qty.toLocaleString()}
-          </div>`;
+                ${stack.product_id} | Qty: ${stack.qty.toLocaleString()}<br>
+                🆔 Box: ${stack.box_id}
+              </div>`;
             } else {
               content += `<div class="px-1 py-[2px] text-gray-400 italic text-center">– kosong –</div>`;
             }
@@ -117,8 +177,8 @@
 
           const totalQty = filledStacks.reduce((sum, stack) => sum + stack.qty, 0);
           content += `<div class="pt-1 border-t border-gray-300 text-gray-800 font-semibold text-[10px] text-center">
-        📦 Box: ${filledStacks.length} | Total Qty: ${totalQty.toLocaleString()}
-      </div>`;
+            📦 Box: ${filledStacks.length} | Total Qty: ${totalQty.toLocaleString()}
+          </div>`;
 
           btn.innerHTML = content;
 
@@ -133,7 +193,6 @@
         });
       });
     }
-
   </script>
 </body>
 
